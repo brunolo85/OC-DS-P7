@@ -3,6 +3,4 @@ numpy==1.21.5
 pandas==1.4.4
 shap==0.41.0
 streamlit==1.11.0
-matplotlib=3.6.2=py39haa95532_0
-matplotlib-base=3.6.2=py39h1094b8e_0
-matplotlib-inline=0.1.6=py39haa95532_0
+matplotlib==3.6.2
