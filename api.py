@@ -11,12 +11,14 @@ import pickle
 import numpy as np
 import pandas as pd
 import shap
+import os
 
 
 app = flask.Flask(__name__)
 app.config["DEBUG"] = True
 
-path = "C:/Users/bruno/kDrive/Work/OpenClassrooms/P7/"
+#path = "C:/Users/bruno/kDrive/Work/OpenClassrooms/P7/"
+path = os.path.dirname(os.path.realpath(__file__))
 
 @app.route('/', methods=['GET'])
 def home():
@@ -27,10 +29,10 @@ def home():
 """
 
 # getting our trained model from a file we created earlier
-model = pickle.load(open(path + "model.pkl","rb"))
+model = pickle.load(open(path + "/model.pkl","rb"))
 # getting the data
-X = pd.read_csv(path + "data_sample.csv")
-data_ref = pd.read_csv(path + "data_ref.csv")
+X = pd.read_csv(path + "/data_sample.csv")
+data_ref = pd.read_csv(path + "/data_ref.csv")
 
 # defining a route to get clients IDs
 @app.route("/data/ID", methods=["GET"])

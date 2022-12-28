@@ -15,8 +15,8 @@ import shap
 st.set_option('deprecation.showPyplotGlobalUse', False)
 st.set_page_config(page_title = "OC - P7 - Scoring Client", layout="wide")
 # API configuration
-API_url = "http://127.0.0.1:5000/"
-#API_url = "http://bl0ws.pythonanywhere.com/"
+#API_url = "http://127.0.0.1:5000/"
+API_url = "http://bl0ws.pythonanywhere.com/"
 #username = 'Bl0wS'
 #token = 'a22bdbd9f871b5a2e2533f35560bf1baa7f269fd'
 
