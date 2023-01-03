@@ -186,7 +186,7 @@ with st.spinner("Traitement en cours..."):
             meanprops=meanpointprops)
     # Add in a point to show current client
     sns.stripplot(
-            data=data_client,
+            data=data_client[columns_selected],
             orient="h",
             size=8,
             palette="blend:firebrick,firebrick",
