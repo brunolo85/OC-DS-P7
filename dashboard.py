@@ -21,9 +21,9 @@ st.set_option('deprecation.showPyplotGlobalUse', False)
 st.set_page_config(page_title = "OC - P7 - Scoring Client", layout="wide")
 # API configuration
 # local :
-API_url = "http://127.0.0.1:5000/"
+#API_url = "http://127.0.0.1:5000/"
 # online :
-#API_url = "http://bl0ws.pythonanywhere.com/"
+API_url = "http://bl0ws.pythonanywhere.com/"
 # Initialize javascript for shap plots
 shap.initjs()
 
