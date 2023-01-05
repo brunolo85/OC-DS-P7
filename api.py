@@ -55,9 +55,7 @@ def client_data(client_id):
     # add the shap values in the dataframe
     df_sample["expected"] = explainer.expected_value[1]
     new_line = [99999] + list(shap_values[1]) + [0,0,explainer.expected_value[1]]
-    new_line2 = [99999] + list(shap_values[0]) + [0,0,explainer.expected_value[0]]
     df_sample.loc[1] = new_line
-    df_sample.loc[2] = new_line2
     # create the dictionary to be sent
     sample = df_sample.to_dict("list")
     #returning sample and prediction objects as json

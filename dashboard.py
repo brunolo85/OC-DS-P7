@@ -48,7 +48,7 @@ data_all = pd.DataFrame(API_data_all)
 client_list = data_all["SK_ID_CURR"].tolist()
 
 # Create the list of columns
-columns = list(data_all.iloc[:,1:21].columns)
+columns = list(data_all.drop(columns="SK_ID_CURR").columns)
 
 # Create the reference data (mean, median, mode)
 Z = data_all[columns]
@@ -68,10 +68,18 @@ client_index = data_all[data_all["SK_ID_CURR"] == client_id].index
 
 # Prepare the data for the comparison plot by scaling it
 data_plot = data_all[columns]
+
+categories = []
+for col in columns:
+    if len(data_plot[col].value_counts().index) == 2:
+        if (np.sort(data_plot[col].value_counts().index).astype(int) == [0, 1]).all():
+            categories.append(col)
+
 col_one = []
 col_std = []
 for col in data_plot.columns:
-    if data_plot[col].min() >= 0 and data_plot[col].max() <= 1:
+    #if data_plot[col].min() >= 0 and data_plot[col].max() <= 1:
+    if "_cat_" in col or col in categories:
         col_one.append(col)
     else:
         col_std.append(col)
@@ -81,25 +89,46 @@ scale_min_max = ColumnTransformer(
     ],
     remainder="passthrough",
 )
+# Re-order the columns
+columns = col_std + col_one
+# Scale the data
 data_plot_std = scale_min_max.fit_transform(data_plot)
-data_plot_final = pd.DataFrame(data_plot_std, columns=data_plot.columns)
+# Re-create a DataFrame
+data_plot_final = pd.DataFrame(data_plot_std, columns=columns)
+# Extrat a sub df for the selected client
 data_client = data_plot_final.loc[client_index, :]
 
+for col in data_ref.columns:
+    if col in col_one:
+        data_ref.loc["median", col] = np.NaN
+    else:
+        data_ref.loc["mode", col] = np.NaN
+
 # manually define the default columns names
-default = [
-    "CODE_GENDER",
-    "DAYS_BIRTH",
-    "DAYS_EMPLOYED",
-    "EXT_SOURCE_2",
-    "EXT_SOURCE_3",
-    "PREV_NAME_CONTRACT_STATUS_Approved_MEAN",
-    "PREV_CODE_REJECT_REASON_SCOFR_MEAN",
-    "PREV_CODE_REJECT_REASON_XAP_MEAN",
-]
+default = ['EXT_SOURCE_2',
+         'EXT_SOURCE_3',
+         'BURO_DAYS_CREDIT_MIN',
+         'BURO_DAYS_CREDIT_ENDDATE_MIN',
+         'NAME_INCOME_TYPE_cat_Working',
+         'BURO_CREDIT_ACTIVE_cat_Active_MEAN',
+         'DAYS_BIRTH',
+         'DAYS_EMPLOYED',
+         'BURO_CREDIT_ACTIVE_cat_Closed_MEAN',
+         'DAYS_LAST_PHONE_CHANGE']
 
 # In the sidebar allow to select several columns in the list
 columns_selected = st.sidebar.multiselect("Informations du client à afficher",
                                  columns, default)
+
+# Create the sub-lists of columns for the plots
+columns_categ = []
+columns_quanti = []
+for col in columns:
+    if col in columns_selected:
+        if col in categories:
+            columns_categ.append(col)
+        else:
+            columns_quanti.append(col)
 
 # Once the client and columns are selected, run the process
 # display a message while processing...
@@ -109,13 +138,16 @@ with st.spinner("Traitement en cours..."):
     API_data_client = json.loads(json_url_client.read())
     df = pd.DataFrame(API_data_client)
     
+    # List the columns we don't need for the explanation
+    columns_info = ["SK_ID_CURR", "expected", "prediction", "proba_1"]
+    
     # Store the columns names to use them in the shap plots
-    client_data = df.iloc[0:1,0:20]
+    client_data = df.drop(columns = columns_info).iloc[0:1,:]
     features_analysis = client_data.columns
     
     # store the data we want to explain in the shap plots
     data_explain = np.asarray(client_data)
-    shap_values = df.iloc[1,0:20].values
+    shap_values = df.drop(columns = columns_info).iloc[1,:].values
     expected_value = df["expected"][0]
     
     col1, col2, col3 = st.columns(3)
@@ -166,7 +198,8 @@ with st.spinner("Traitement en cours..."):
         
     st.subheader("Caractéristiques du client")
     
-    # Display a plot that compares the current client within all the clients
+    # Display plots that compare the current client within all the clients
+    # For quantitative features first
     # Initialize the figure
     f, ax = plt.subplots(figsize=(7, 5))
     # Set the style for average values markers
@@ -174,7 +207,7 @@ with st.spinner("Traitement en cours..."):
                               markerfacecolor="green", markeredgewidth=0.66)
     # Build the boxplots for each feature
     sns.boxplot(
-            data=data_plot_final[columns_selected],
+            data=data_plot_final[columns_quanti],
             orient="h",
             whis=3,
             palette="muted",
@@ -182,11 +215,10 @@ with st.spinner("Traitement en cours..."):
             width=0.6,
             showfliers=False,
             showmeans=True,
-            meanline=False,
             meanprops=meanpointprops)
     # Add in a point to show current client
     sns.stripplot(
-            data=data_client[columns_selected],
+            data=data_client[columns_quanti],
             orient="h",
             size=8,
             palette="blend:firebrick,firebrick",
@@ -196,7 +228,7 @@ with st.spinner("Traitement en cours..."):
     # Remove ticks labels for x
     ax.set_xticklabels([])
     # Manage y labels style
-    ax.set_yticklabels(columns_selected,
+    ax.set_yticklabels(columns_quanti,
             fontdict={"fontsize": "medium",
                 "fontstyle": "italic",
                 "verticalalignment": "center",
@@ -207,7 +239,7 @@ with st.spinner("Traitement en cours..."):
     plt.tick_params(left=False, bottom=False)
     # Add separation lines for y values
     lines = [ax.axhline(y, color="grey", linestyle="solid", linewidth=0.7)
-                            for y in np.arange(0.5, len(columns_selected), 1)]
+                            for y in np.arange(0.5, len(columns_quanti)-1, 1)]
     # Proxy artists to add a legend
     average = mlines.Line2D([], [], color="green", marker="^",
                             linestyle="None", markeredgecolor="black",
@@ -216,8 +248,94 @@ with st.spinner("Traitement en cours..."):
                             linestyle="None", markeredgecolor="black",
                             markeredgewidth=0.66, markersize=8, label="client courant")
     ax.legend(handles=[average, current], bbox_to_anchor=(1, 1), fontsize="small")
+    plt.title("Informations quantitatives")
     # Display the plot
     st.pyplot(f)
+    
+    # Then for categories
+    # First ceate a summary dataframe
+    df_plot_cat = pd.DataFrame()
+    for col in columns_categ:
+        df_plot_cat = pd.concat(
+            [
+                df_plot_cat,
+                pd.DataFrame(data_plot_final[col].value_counts()).transpose(),
+            ]
+        )
+    df_plot_cat["categories"] = df_plot_cat.index
+    df_plot_cat = df_plot_cat[["categories", 0.0, 1.0]]
+    df_plot_cat = df_plot_cat.fillna(0)
+    # Then create the plot
+    with plt.style.context("_mpl-gallery-nogrid"):
+        # plot a Stacked Bar Chart using matplotlib
+        ax = df_plot_cat.plot(
+            x="categories",
+            kind="barh",
+            stacked=True,
+            mark_right=True,
+            grid=False,
+            xlabel="",
+            figsize=(6, 0.5 * len(columns_categ)),
+        )
+        # Display percentages of each value
+        df_total = df_plot_cat[0.0] + df_plot_cat[1.0]
+        df_rel = df_plot_cat[df_plot_cat.columns[1:]].div(df_total, 0) * 100
+        for n in df_rel:
+            for i, (cs, ab, pc) in enumerate(
+                zip(df_plot_cat.iloc[:, 1:].cumsum(1)[n], df_plot_cat[n], df_rel[n])
+            ):
+                plt.text(
+                    cs - ab / 2,
+                    i,
+                    str(np.round(pc, 1)) + "%",
+                    va="center",
+                    ha="center",
+                    color="white",
+                )
+        # Display markers for the current client
+        comparison = []
+        for col in columns_categ:
+            total = len(data_plot_final[col])
+            client_val = int(data_client[col])
+            mask = data_plot_final[col] == client_val
+            temp = data_plot_final[mask]
+            count = temp[col].value_counts().values[0]
+            comparison.append(client_val * (total - count) + count / 2 + 15)
+        plt.plot(
+            comparison,
+            columns_categ,
+            marker="D",
+            color="firebrick",
+            markersize=8,
+            markeredgecolor="black",
+            linestyle="None",
+            markeredgewidth=0.66,
+        )
+        # Manage display
+        sns.despine(
+            trim=True,
+            left=True,
+            bottom=False,
+            top=True,
+        )
+        plt.legend(
+            ncols=1,
+            labels=["client courant", 0, 1],
+            bbox_to_anchor=(1, 1),
+            fontsize="small",
+        )
+        ax.set_yticklabels(
+            columns_categ,
+            fontdict={
+                "fontsize": "medium",
+                "fontstyle": "italic",
+                "verticalalignment": "center",
+                "horizontalalignment": "right",
+            },
+        )
+        plt.xlabel("Population")
+        plt.title("Informations catégorielles")
+    st.pyplot()
     
     # in an expander, display the client's data and comparison with average
     with st.expander("Ouvrir pour afficher les données détaillées"):
