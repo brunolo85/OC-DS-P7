@@ -50,39 +50,23 @@ client_list = data_all["SK_ID_CURR"].tolist()
 # Create the list of columns
 columns = list(data_all.drop(columns="SK_ID_CURR").columns)
 
-# Create the reference data (mean, median, mode)
-Z = data_all[columns]
-data_ref = pd.DataFrame(index=Z.columns)
-data_ref["mean"] = Z.mean()
-data_ref["median"] = Z.median()
-data_ref["mode"] = Z.mode().iloc[0, :]
-data_ref = data_ref.transpose()
-
-# In the sidebar allow to select a client in the list
-st.sidebar.header("Paramètres")
-client_id = st.sidebar.selectbox("Identification du client",
-                                 client_list)
-
-# Store the index in the DataFrame for this client
-client_index = data_all[data_all["SK_ID_CURR"] == client_id].index
-
 # Prepare the data for the comparison plot by scaling it
 data_plot = data_all[columns]
-
+# Create the list of booleans columns
 categories = []
 for col in columns:
     if len(data_plot[col].value_counts().index) == 2:
         if (np.sort(data_plot[col].value_counts().index).astype(int) == [0, 1]).all():
             categories.append(col)
-
+# Create lists for categorical and other columns
 col_one = []
 col_std = []
 for col in data_plot.columns:
-    #if data_plot[col].min() >= 0 and data_plot[col].max() <= 1:
     if "_cat_" in col or col in categories:
         col_one.append(col)
     else:
         col_std.append(col)
+# Set up the scaler to transform the data for the plots
 scale_min_max = ColumnTransformer(
     transformers=[
         ("std", MinMaxScaler(), col_std),
@@ -95,14 +79,31 @@ columns = col_std + col_one
 data_plot_std = scale_min_max.fit_transform(data_plot)
 # Re-create a DataFrame
 data_plot_final = pd.DataFrame(data_plot_std, columns=columns)
-# Extrat a sub df for the selected client
-data_client = data_plot_final.loc[client_index, :]
 
+# Create the reference data (mean, median, mode)
+Z = data_all[columns]
+data_ref = pd.DataFrame(index=Z.columns)
+data_ref["mean"] = Z.mean()
+data_ref["median"] = Z.median()
+data_ref["mode"] = Z.mode().iloc[0, :]
+data_ref = data_ref.transpose()
+# Remove values when not relevant
 for col in data_ref.columns:
     if col in col_one:
         data_ref.loc["median", col] = np.NaN
     else:
         data_ref.loc["mode", col] = np.NaN
+
+# In the sidebar allow to select a client in the list
+st.sidebar.header("Paramètres")
+client_id = st.sidebar.selectbox("Identification du client",
+                                 client_list)
+
+# Store the index in the DataFrame for this client
+client_index = data_all[data_all["SK_ID_CURR"] == client_id].index
+
+# Extract a sub plot df for the selected client
+data_client = data_plot_final.loc[client_index, :]
 
 # manually define the default columns names
 default = ['EXT_SOURCE_2',
@@ -120,7 +121,7 @@ default = ['EXT_SOURCE_2',
 columns_selected = st.sidebar.multiselect("Informations du client à afficher",
                                  columns, default)
 
-# Create the sub-lists of columns for the plots
+# Create the sub-lists of columns for the plots in the selected columns
 columns_categ = []
 columns_quanti = []
 for col in columns:
@@ -137,7 +138,7 @@ with st.spinner("Traitement en cours..."):
     json_url_client = urlopen(API_url + "data/client/" + str(client_id))
     API_data_client = json.loads(json_url_client.read())
     df = pd.DataFrame(API_data_client)
-    
+    st.write(df)
     # List the columns we don't need for the explanation
     columns_info = ["SK_ID_CURR", "expected", "prediction", "proba_1"]
     
@@ -150,6 +151,8 @@ with st.spinner("Traitement en cours..."):
     shap_values = df.drop(columns = columns_info).iloc[1,:].values
     expected_value = df["expected"][0]
     
+    # Display client score :
+    st.subheader("Scoring client :")    
     col1, col2, col3 = st.columns(3)
     if df["proba_1"][0]<0.45:
         with col1:
@@ -167,7 +170,7 @@ with st.spinner("Traitement en cours..."):
                   disabled=True)
     
     # Explain the scoring thanks to shap plots
-    st.subheader('Interprétation du scoring')
+    st.subheader("Interprétation du scoring :")
     
     # display a shap force plot
     fig_force = shap.force_plot(
@@ -196,7 +199,7 @@ with st.spinner("Traitement en cours..."):
             features_analysis)
         st.pyplot(fig_decision)
         
-    st.subheader("Caractéristiques du client")
+    st.subheader("Caractéristiques du client :")
     
     # Display plots that compare the current client within all the clients
     # For quantitative features first
