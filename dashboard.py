@@ -114,7 +114,7 @@ default = ['EXT_SOURCE_2',
          'BURO_CREDIT_ACTIVE_cat_Active_MEAN',
          'DAYS_BIRTH',
          'DAYS_EMPLOYED',
-         'BURO_CREDIT_ACTIVE_cat_Closed_MEAN',
+         'CODE_GENDER',
          'DAYS_LAST_PHONE_CHANGE']
 
 # In the sidebar allow to select several columns in the list
@@ -138,7 +138,7 @@ with st.spinner("Traitement en cours..."):
     json_url_client = urlopen(API_url + "data/client/" + str(client_id))
     API_data_client = json.loads(json_url_client.read())
     df = pd.DataFrame(API_data_client)
-    st.write(df)
+
     # List the columns we don't need for the explanation
     columns_info = ["SK_ID_CURR", "expected", "prediction", "proba_1"]
     
